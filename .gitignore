@@ -1,0 +1,9 @@
+# Ignore datasets
+data/
+
+# Ignore venv
+venv/
+
+# Ignore python pycache
+__pycache__/
+
