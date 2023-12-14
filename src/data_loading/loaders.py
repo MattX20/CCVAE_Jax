@@ -18,6 +18,17 @@ def get_data_loaders(dataset_name: str,
                      shuffle: bool=True, 
                      seed: Optional[int]=None
                      ):
+    """
+        get_data_loaders takes as input the name of a dataset,
+        the proportion of testing data, 
+        the proportion of validation data within the remaining data,
+        the proportion of supervised data within the remaining data,
+        the batch size and number of workers used for the data loaders,
+        and return the different loaders :
+        test, validation, supervised, unsupervised, semi-supervised
+        and the image shape.
+    """
+
 
     if dataset_name == "MNIST":
         dataset = datasets.MNIST(root='./data', train=True, download=True, transform=default_transform)
@@ -92,4 +103,4 @@ def get_data_loaders(dataset_name: str,
     print("Num validation samples:", val_size)
     print("Num supervised samples:", supervised_size)
     print("Num unsupervised samples:", unsupervised_size)
-    return res
+    return img_shape, res

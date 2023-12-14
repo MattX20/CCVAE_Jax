@@ -11,51 +11,17 @@ import pickle
 
 from jax import grad, jit, value_and_grad
 import optax
-
-from torch.utils.data import DataLoader, random_split
-from torchvision import datasets
-
-from src.data_transforms import default_transform, jax_collate_fn, jax_semi_supervised_collate_fn
-from src.constants import CIFAR10_IMG_SHAPE, MNIST_IMG_SHAPE
 from src.models.encoder_decoder import CIFAR10Encoder, CIFAR10Decoder, MNISTEncoder, MNISTDecoder
 from src.models.M2VAE import instanciate_MVAE
 from src.losses import binary_cross_entropy_loss, gaussian_kl, cross_entropy_loss
 from src.utils import compute_accuracy
-
+from src.data_loading.loaders import get_data_loaders
 
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
 
-# Load dataset
-dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=default_transform)
-
-# Split the training set into training and validation sets
-train_size = int(0.8 * len(dataset))
-test_size = len(dataset) - train_size
-train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-
-print(int(0.1 * train_size), test_size)
-
-# Mask 80% of the training labels
-mask = np.random.rand(len(train_dataset)) < 0.9
-for idx in np.where(mask)[0]:
-    train_dataset.dataset.targets[train_dataset.indices[idx]] = -1  # Use -1 or any other placeholder for unknown labels
-
-# Create data loaders
-train_loader = DataLoader(
-    train_dataset, 
-    batch_size=64, 
-    shuffle=True, 
-    num_workers=6, 
-    collate_fn=lambda batch : jax_semi_supervised_collate_fn(batch, CIFAR10_IMG_SHAPE)
-)
-test_loader = DataLoader(
-    test_dataset, 
-    batch_size=64, 
-    shuffle=True, 
-    num_workers=6, 
-    collate_fn=lambda batch : jax_collate_fn(batch, CIFAR10_IMG_SHAPE)
-)
+# Data loading
+img_shape, loader_dict = get_data_loaders(dataset_name="MNIST", p_test=0.2, p_val=0.1, p_supervised=0.2, batch_size=2, num_workers=6)
 
 # Initialize your model and optimizer
 model = instanciate_MVAE(encoder_class=CIFAR10Encoder, decoder_class=CIFAR10Decoder, latent_dim=50, num_classes=10)
