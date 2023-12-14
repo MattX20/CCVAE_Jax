@@ -98,7 +98,7 @@ test_loader = loader_dict["test"]
 
 # Training loop
 num_epochs = 20
-for epoch in tqdm(range(num_epochs)):
+for epoch in tqdm(range(1, num_epochs + 1)):
     running_loss = 0.0
 
     # Trainning
