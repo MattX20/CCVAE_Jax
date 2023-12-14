@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from torch.utils.data import DataLoader
 
@@ -10,11 +12,15 @@ class SemiSupervisedDataLoader:
         where we have to learn from supervised and unsupervised data.
     """
 
-    def __init__(self, supervised_loader: DataLoader, unsupervised_loader: DataLoader):
+    def __init__(self, supervised_loader: DataLoader, unsupervised_loader: DataLoader, seed: Optional[int]=None):
         self.supervised_loader = supervised_loader
         self.unsupervised_loader = unsupervised_loader
 
         self.bool_array = np.array([True] * len(supervised_loader) + [False] * len(unsupervised_loader))
+        self.seed = seed
+
+        if self.seed is not None:
+            np.random.seed(self.seed)
     
     def __iter__(self):
         np.random.shuffle(self.bool_array)
