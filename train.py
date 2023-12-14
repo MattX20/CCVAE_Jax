@@ -20,47 +20,68 @@ from src.data_loading.loaders import get_data_loaders
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
 
+
+seed = 42
+
 # Data loading
-img_shape, loader_dict = get_data_loaders(dataset_name="MNIST", p_test=0.2, p_val=0.1, p_supervised=0.2, batch_size=2, num_workers=6)
+img_shape, loader_dict = get_data_loaders(dataset_name="MNIST", 
+                                          p_test=0.2, 
+                                          p_val=0.1, 
+                                          p_supervised=0.2, 
+                                          batch_size=2, 
+                                          num_workers=0, 
+                                          seed=seed)
 
 # Initialize your model and optimizer
-model = instanciate_MVAE(encoder_class=CIFAR10Encoder, decoder_class=CIFAR10Decoder, latent_dim=50, num_classes=10)
+model = instanciate_MVAE(encoder_class=MNISTEncoder, decoder_class=MNISTDecoder, latent_dim=10, num_classes=10)
 optimizer = optax.adam(learning_rate=1e-4)
 
 # Initialize parameters
-params = model.init(random.PRNGKey(0), jnp.ones((1,) + CIFAR10_IMG_SHAPE), random.PRNGKey(0))
+params = model.init(random.PRNGKey(0), jnp.ones((1,) + img_shape), random.PRNGKey(0))
 optimizer = optax.adam(1e-3)
 
-key = random.PRNGKey(42)
+key = random.PRNGKey(seed)
 
 @jit
-def train_step(state, batch, rng_key):
+def train_step_supervised(state, batch, rng_key):
 
     def loss_fn(params):
-        # Unpack the batches
-        labeled_inputs, labeled_labels, unlabeled_inputs = batch
+        # Unpack the batch
+        X, y = batch
 
-        # Initialize losses
-        recon_loss_labeled, kl_loss_labeled, ce_loss = 0, 0, 0
-        recon_loss_unlabeled, kl_loss_unlabeled = 0, 0
+        # Process the batch
+        reconstructed_X, mu, logvar, logy = model.apply(params, X, rng_key)
+        
+        # Get losses
+        recon_loss = binary_cross_entropy_loss(reconstructed_X, X)
+        kl_loss = gaussian_kl(mu, logvar)
+        ce_loss = cross_entropy_loss(logy, y)
 
-        # Check and process labeled data
-        if labeled_inputs.size > 0:
-            reconstructed_labeled, mu_labeled, logvar_labeled, logy_labeled = model.apply(params, labeled_inputs, rng_key)
-            recon_loss_labeled = binary_cross_entropy_loss(reconstructed_labeled, labeled_inputs)
-            kl_loss_labeled = gaussian_kl(mu_labeled, logvar_labeled)
-            ce_loss = 100 *  cross_entropy_loss(logy_labeled, labeled_labels)
+        total_loss = recon_loss + kl_loss + ce_loss
 
-        # Check and process unlabeled data
-        if unlabeled_inputs.size > 0:
-            reconstructed_unlabeled, mu_unlabeled, logvar_unlabeled, _ = model.apply(params, unlabeled_inputs, rng_key)
-            recon_loss_unlabeled = binary_cross_entropy_loss(reconstructed_unlabeled, unlabeled_inputs)
-            kl_loss_unlabeled = gaussian_kl(mu_unlabeled, logvar_unlabeled)
+        return total_loss
 
-        # Calculate total loss
-        total_recon_loss = recon_loss_labeled + recon_loss_unlabeled
-        total_kl_loss = kl_loss_labeled + kl_loss_unlabeled
-        total_loss = total_recon_loss + total_kl_loss + ce_loss
+    grad_fn = value_and_grad(loss_fn, has_aux=False)
+    total_loss, grads = grad_fn(state.params)
+    state = state.apply_gradients(grads=grads)
+    return state, total_loss
+
+@jit
+def train_step_unsupervised(state, batch, rng_key):
+
+    def loss_fn(params):
+        # Unpack the batch
+        X = batch
+
+        # Process the batch
+        reconstructed_X, mu, logvar, logy = model.apply(params, X, rng_key)
+        
+        # Get losses
+        recon_loss = binary_cross_entropy_loss(reconstructed_X, X)
+        kl_loss = gaussian_kl(mu, logvar)
+
+        total_loss = recon_loss + kl_loss
+
         return total_loss
 
     grad_fn = value_and_grad(loss_fn, has_aux=False)
@@ -71,27 +92,50 @@ def train_step(state, batch, rng_key):
 # Initialize the training state
 state = train_state.TrainState.create(apply_fn=model.apply, params=params, tx=optimizer)
 
-
+semi_supervised_loader = loader_dict["semi_supervised"]
+validation_loader = loader_dict["validation"]
+test_loader = loader_dict["test"]
 
 # Training loop
 num_epochs = 20
 for epoch in tqdm(range(num_epochs)):
-    for batch in train_loader: 
+    running_loss = 0.0
+
+    # Trainning
+    for is_supervised, batch in semi_supervised_loader: 
         batch = device_put(batch)
         key, subkey = random.split(key)
-        state, total_loss = train_step(state, batch, subkey)
 
-    # Evaluation
+        if is_supervised:
+            state, total_loss = train_step_supervised(state, batch, subkey)
+        else:
+            state, total_loss = train_step_unsupervised(state, batch, subkey)
+        
+        running_loss += total_loss
+
+    # Validation
     accuracies = []
-    for batch in test_loader:
-        # Move batch to GPU
-        batch = jax.device_put(batch)
+    for batch in validation_loader:
+        X, y = batch
+        X = jax.device_put(X)
         key, subkey = random.split(key)
         
-        _, _, _, logits = model.apply(state.params, batch[0], subkey)
-        accuracies.append(compute_accuracy(logits, batch[1]))
+        _, _, _, logy = model.apply(state.params, X, subkey)
+        accuracies.append(compute_accuracy(logy, y))
 
-    print(f"Epoch {epoch}, Loss: {total_loss}, Test Accuracy: {np.mean(accuracies)}")
+    print(f"Epoch {epoch}, Loss: {running_loss / len(semi_supervised_loader)}, Val Accuracy: {np.mean(accuracies)}")
+
+ # Test
+accuracies = []
+for batch in test_loader:
+    X, y = batch
+    X = jax.device_put(X)
+    key, subkey = random.split(key)
+    
+    _, _, _, logy = model.apply(state.params, X, subkey)
+    accuracies.append(compute_accuracy(logy, y))
+
+print(f"Test Accuracy: {np.mean(accuracies)}")
 
 # Save parameters
 with open('model_weights.pkl', 'wb') as file:
