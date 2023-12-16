@@ -25,7 +25,7 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
                                           num_workers=6, 
                                           seed=seed)
 
-scale_factor = 50 / size_dict["supervised"]
+scale_factor = 0.1 * size_dict["supervised"]
 
 # Set up model
 m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 30, img_shape, scale_factor=scale_factor)
