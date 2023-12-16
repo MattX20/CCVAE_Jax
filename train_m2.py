@@ -148,13 +148,14 @@ for epoch in tqdm(range(1, num_epochs + 1)):
           validation_accuracy
     )
     
-
+plt.figure()
 plt.plot(loss_rec_supervised, color="red", label="supervised")
 plt.plot(loss_rec_classify, color="blue", label="classify")
 plt.plot(loss_rec_unsupervised, color="green", label="unsupervised")
 plt.legend(loc="best")
 plt.savefig("result_loss.png")
 
+plt.figure()
 plt.plot(validation_accuracy_rec, label="accuracy")
 plt.legend(loc="best")
 plt.savefig("result_acc.png")
