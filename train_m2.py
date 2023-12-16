@@ -20,7 +20,7 @@ seed = 42
 img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST", 
                                           p_test=0.2, 
                                           p_val=0.2, 
-                                          p_supervised=0.1, 
+                                          p_supervised=0.05, 
                                           batch_size=64, 
                                           num_workers=6, 
                                           seed=seed)
@@ -28,10 +28,16 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
 scale_factor = 0.1 * size_dict["supervised"]
 
 # Set up model
-m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 30, img_shape, scale_factor=scale_factor)
+m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 20, img_shape, scale_factor=scale_factor)
 print("Model set up!")
 
 # Set up optimizer
+lr_schedule = optax.piecewise_constant_schedule(
+    init_value=1e-3,
+    boundaries_and_scales={
+        15 * len(loader_dict["semi_supervised"]): 0.1
+    }
+)
 optimizer = optax.adam(1e-3)
 print("Optimizer set up!")
 
@@ -97,7 +103,7 @@ loss_rec_unsupervised = []
 loss_rec_classify = []
 validation_accuracy_rec = []
 
-num_epochs = 20
+num_epochs = 30
 for epoch in tqdm(range(1, num_epochs + 1)):
     running_loss = 0.0
 
@@ -136,7 +142,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     validation_accuracy /= len(validation_loader)
     validation_accuracy_rec.append(validation_accuracy)
 
-    print("Epoch:", 
+    print("\nEpoch:", 
           epoch, 
           "loss sup:", 
           loss_epoch_supervised, 

@@ -20,12 +20,12 @@ seed = 42
 # Data loading
 
 # Data loading
-img_shape, loader_dict = get_data_loaders(dataset_name="MNIST", 
+img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST", 
                                           p_test=0.2, 
-                                          p_val=0.1, 
-                                          p_supervised=0.2, 
-                                          batch_size=2, 
-                                          num_workers=0, 
+                                          p_val=0.2, 
+                                          p_supervised=0.05, 
+                                          batch_size=64, 
+                                          num_workers=6, 
                                           seed=seed)
 
 # Initialize the model parameters
@@ -33,13 +33,20 @@ model = SimpleClassifier(encoder=MNISTEncoder, num_classes=10)
 params = model.init(jax.random.PRNGKey(0), jnp.ones((1,) + img_shape))['params']
 
 # Create an optimizer
-optimizer = optax.adam(learning_rate=0.001)
+lr_schedule = optax.piecewise_constant_schedule(
+    init_value=1e-3,
+    boundaries_and_scales={
+        15 * len(loader_dict["semi_supervised"]): 0.1
+    }
+)
+optimizer = optax.adam(1e-3)
 
 @jax.jit
 def train_step(state, batch):
     def loss_fn(params):
         # Unpack the batch
         X, y = batch
+        y = y.reshape(-1, 1)
 
         logits = model.apply({'params': params}, X)
         loss = cross_entropy_loss(logits, y)
@@ -58,7 +65,7 @@ validation_loader = loader_dict["validation"]
 test_loader = loader_dict["test"]
 
 # Training loop
-num_epochs = 20
+num_epochs = 30
 for epoch in tqdm(range(1, num_epochs + 1)):
     # Train
 
@@ -81,7 +88,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
         accuracies.append(compute_accuracy(logits, batch[1]))
     
     val_accuracy = np.mean(accuracies)
-    print(f"Epoch {epoch}, Loss: {running_loss / len(train_loader)}, Val Accuracy: {val_accuracy}")
+    print(f"\nEpoch {epoch}, Loss: {running_loss / len(train_loader)}, Val Accuracy: {val_accuracy}")
 
 # Test
 accuracies = []
