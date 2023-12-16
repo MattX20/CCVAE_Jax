@@ -89,11 +89,13 @@ def train_step_unsupervised(state, batch):
 
 # Training
 semi_supervised_loader = loader_dict["semi_supervised"]
+validation_loader = loader_dict["validation"]
 
 print("Start training.")
 loss_rec_supervised = []
 loss_rec_unsupervised = []
 loss_rec_classify = []
+validation_accuracy_rec = []
 
 num_epochs = 20
 for epoch in tqdm(range(1, num_epochs + 1)):
@@ -115,12 +117,44 @@ for epoch in tqdm(range(1, num_epochs + 1)):
             state, loss_unsupervised = train_step_unsupervised(state, batch)
             loss_rec_step_unsupervised.append(loss_unsupervised)
     
-    loss_rec_supervised.append(np.mean(loss_rec_step_supervised))
-    loss_rec_classify.append(np.mean(loss_rec_step_classify))
-    loss_rec_unsupervised.append(np.mean(loss_rec_step_unsupervised))
+    loss_epoch_supervised = np.mean(loss_rec_step_supervised)
+    loss_epoch_classify = np.mean(loss_rec_step_classify)
+    loss_epoch_unsupervised = np.mean(loss_rec_step_unsupervised)
+
+    loss_rec_supervised.append(loss_epoch_supervised)
+    loss_rec_classify.append(loss_epoch_classify)
+    loss_rec_unsupervised.append(loss_epoch_unsupervised)
+
+    validation_accuracy = 0.0
+
+    for batch in validation_loader:
+        batch = device_put(batch)
+        x, y = batch
+        ypred = m2_vae.classify(state, x)
+        validation_accuracy += jnp.mean(y == ypred)
+    
+    validation_accuracy /= len(validation_loader)
+    validation_accuracy_rec.append(validation_accuracy)
+
+    print("Epoch:", 
+          epoch, 
+          "loss sup:", 
+          loss_epoch_supervised, 
+          "loss unsup:", 
+          loss_epoch_unsupervised, 
+          "loss class:",
+          loss_epoch_classify,
+          "val acc:", 
+          validation_accuracy
+    )
+    
 
 plt.plot(loss_rec_supervised, color="red", label="supervised")
 plt.plot(loss_rec_classify, color="blue", label="classify")
 plt.plot(loss_rec_unsupervised, color="green", label="unsupervised")
 plt.legend(loc="best")
-plt.savefig("result.png")
+plt.savefig("result_loss.png")
+
+plt.plot(validation_accuracy_rec, label="accuracy")
+plt.legend(loc="best")
+plt.savefig("result_acc.png")
