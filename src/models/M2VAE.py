@@ -70,7 +70,7 @@ class M2VAE:
         self.latent_dim = latent_dim
         self.img_shape = img_shape
     
-    def model(self, xs, ys=None):
+    def model_supervised(self, xs, ys):
         batch_size = xs.shape[0]
 
         decoder = flax_module(
@@ -80,26 +80,23 @@ class M2VAE:
             y_one_hot=jnp.ones((1, self.num_classes))
         ) 
 
-        # with numpyro.plate("data", batch_size):
+        with numpyro.plate("data", batch_size):
+            prior_loc = jnp.zeros((batch_size, self.latent_dim))
+            prior_scale = jnp.ones((batch_size, self.latent_dim))
+            zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale).to_event(1))
+            alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+            ys = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
+            #if ys is not None:
+            #    with numpyro.handlers.scale(scale=100.):
+            #        numpyro.sample("y_aux", dist.Categorical(alpha_prior), obs=ys)
+            
+            y_one_hot = jnp.eye(self.num_classes)[ys]
+            loc = decoder(zs, y_one_hot)
+            numpyro.sample("x", dist.Bernoulli(loc, validate_args=False).to_event(3), obs=xs)
 
-        prior_loc = jnp.zeros((batch_size, self.latent_dim))
-        prior_scale = jnp.ones((batch_size, self.latent_dim))
-        zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale))
+            return loc
 
-        alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
-        ys = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
-
-        if ys is not None:
-            with numpyro.handlers.scale(scale=100.):
-                numpyro.sample("y_aux", dist.Categorical(alpha_prior), obs=ys)
-        
-        y_one_hot = jnp.eye(self.num_classes)[ys]
-        loc = decoder(zs, y_one_hot)
-        numpyro.sample("x", dist.Bernoulli(loc), obs=xs)
-
-        return loc
-
-    def guide(self, xs, ys=None):
+    def guide_supervised(self, xs, ys):
         batch_size = xs.shape[0]
 
         encoder1 = flax_module(
@@ -115,11 +112,60 @@ class M2VAE:
             y_one_hot=jnp.ones((1, self.num_classes))
         )
 
-        # with numpyro.plate("data", batch_size):
+        with numpyro.plate("data", batch_size):
 
-        h, y_prob = encoder1(xs)
-        if ys is None:
-            ys = numpyro.sample("y", dist.Categorical(y_prob))
-        y_one_hot = jnp.eye(self.num_classes)[ys]
-        loc, scale = encoder2(h, y_one_hot)
-        numpyro.sample("z", dist.Normal(loc, scale))
+            h, y_prob = encoder1(xs)
+            #if ys is None:
+            #    ys = numpyro.sample("y", dist.Categorical(y_prob))
+            y_one_hot = jnp.eye(self.num_classes)[ys]
+            loc, scale = encoder2(h, y_one_hot)
+            numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
+    
+    def model_unsupervised(self, xs):
+        batch_size = xs.shape[0]
+
+        decoder = flax_module(
+            "decoder", 
+            M2Decoder(self.decoder_class), 
+            z=jnp.ones((1, self.latent_dim)),
+            y_one_hot=jnp.ones((1, self.num_classes))
+        ) 
+
+        with numpyro.plate("data", batch_size):
+
+            prior_loc = jnp.zeros((batch_size, self.latent_dim))
+            prior_scale = jnp.ones((batch_size, self.latent_dim))
+            zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale).to_event(1))
+
+            alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+            ys = numpyro.sample("y", dist.Categorical(alpha_prior), infer={"enumerate": "parallel"})
+
+            y_one_hot = jnp.eye(self.num_classes)[ys]
+            loc = decoder(zs, y_one_hot)
+            numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
+
+        return loc
+
+    def guide_unsupervised(self, xs):
+        batch_size = xs.shape[0]
+
+        encoder1 = flax_module(
+            "encoder1",
+            M2FirstEncoder(self.encoder_class, self.num_classes, self.latent_dim),
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        encoder2 = flax_module(
+            "encoder2",
+            M2SecondEncoder(self.latent_dim),
+            h=jnp.ones((1, self.latent_dim)),
+            y_one_hot=jnp.ones((1, self.num_classes))
+        )
+
+        with numpyro.plate("data", batch_size):
+
+            h, y_prob = encoder1(xs)
+            ys = numpyro.sample("y", dist.Categorical(y_prob), infer={"enumerate": "parallel"})
+            y_one_hot = jnp.eye(self.num_classes)[ys]
+            loc, scale = encoder2(h, y_one_hot)
+            numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
