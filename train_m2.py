@@ -21,8 +21,8 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
                                           p_test=0.2, 
                                           p_val=0.2, 
                                           p_supervised=0.1, 
-                                          batch_size=2, 
-                                          num_workers=0, 
+                                          batch_size=64, 
+                                          num_workers=6, 
                                           seed=seed)
 
 scale_factor = 50 / size_dict["supervised"]
@@ -109,12 +109,11 @@ for epoch in tqdm(range(1, num_epochs + 1)):
 
         if is_supervised:
             state, loss_supervised, loss_classify = train_step_supervised(state, batch)
+            loss_rec_step_supervised.append(loss_supervised)
+            loss_rec_step_classify.append(loss_classify)
         else:
             state, loss_unsupervised = train_step_unsupervised(state, batch)
-        
-        loss_rec_step_supervised.append(loss_supervised)
-        loss_rec_step_classify.append(loss_classify)
-        loss_rec_step_unsupervised.append(loss_unsupervised)
+            loss_rec_step_unsupervised.append(loss_unsupervised)
     
     loss_rec_supervised.append(np.mean(loss_rec_step_supervised))
     loss_rec_classify.append(np.mean(loss_rec_step_classify))
