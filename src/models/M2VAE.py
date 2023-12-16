@@ -62,13 +62,15 @@ class M2VAE:
                  decoder_class: Type[nn.Module],
                  num_classes: int,
                  latent_dim: int,
-                 img_shape: Tuple[int, int, int]):
+                 img_shape: Tuple[int, int, int],
+                 scale_factor: float):
         
         self.encoder_class = encoder_class
         self.decoder_class = decoder_class
         self.num_classes = num_classes
         self.latent_dim = latent_dim
         self.img_shape = img_shape
+        self.scale_factor = scale_factor
     
     def model_supervised(self, xs, ys):
         batch_size = xs.shape[0]
@@ -138,8 +140,7 @@ class M2VAE:
             zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale).to_event(1))
 
             alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
-            ys = numpyro.sample("y", dist.Categorical(alpha_prior), infer={"enumerate": "parallel"})
-
+            ys = numpyro.sample("y", dist.Categorical(alpha_prior))
             y_one_hot = jnp.eye(self.num_classes)[ys]
             loc = decoder(zs, y_one_hot)
             numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
@@ -169,3 +170,22 @@ class M2VAE:
             y_one_hot = jnp.eye(self.num_classes)[ys]
             loc, scale = encoder2(h, y_one_hot)
             numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
+
+    def model_classify(self, xs, ys):
+        batch_size = xs.shape[0]
+
+        encoder1 = flax_module(
+            "encoder1",
+            M2FirstEncoder(self.encoder_class, self.num_classes, self.latent_dim),
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        with numpyro.plate("data", batch_size):
+
+            _, y_prob = encoder1(xs)
+            
+            with numpyro.handlers.scale(scale=self.scale_factor):
+                numpyro.sample("y_aux", dist.Categorical(y_prob), obs=ys)
+
+    def guide_classify(self, xs, ys):
+        pass

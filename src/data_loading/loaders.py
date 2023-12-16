@@ -90,12 +90,19 @@ def get_data_loaders(dataset_name: str,
                                                       unsupervised_loader=unsupervised_loader, 
                                                       seed=seed)
 
-    res = {
+    loader_dict = {
         "test": test_loader,
         "validation": val_loader,
         "supervised": supervised_loader,
         "unsupervised": unsupervised_loader,
         "semi_supervised": semi_supervised_loader
+    }
+    size_dict = {
+        "test": test_size,
+        "validation": val_size,
+        "supervised": supervised_size,
+        "unsupervised": unsupervised_size,
+        "semi_supervised": supervised_size + unsupervised_size
     }
     print("Successfully loaded", dataset_name, "dataset.")
     print("Total num samples", initial_size)
@@ -103,4 +110,4 @@ def get_data_loaders(dataset_name: str,
     print("Num validation samples:", val_size)
     print("Num supervised samples:", supervised_size)
     print("Num unsupervised samples:", unsupervised_size)
-    return img_shape, res
+    return img_shape, loader_dict, size_dict
