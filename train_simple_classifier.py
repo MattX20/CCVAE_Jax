@@ -15,12 +15,17 @@ from src.data_loading.loaders import get_data_loaders
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
 
+
+# Set up random seed
 seed = 42
 
-# Data loading
+# DATASET
+dataset_name = "MNIST" # use "CIFAR10"
+
+encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
 
 # Data loading
-img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST", 
+img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name, 
                                           p_test=0.2, 
                                           p_val=0.2, 
                                           p_supervised=0.05, 
@@ -29,7 +34,7 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
                                           seed=seed)
 
 # Initialize the model parameters
-model = SimpleClassifier(encoder=MNISTEncoder, num_classes=10)
+model = SimpleClassifier(encoder=encoder_class, num_classes=10)
 params = model.init(jax.random.PRNGKey(0), jnp.ones((1,) + img_shape))['params']
 
 # Create an optimizer
