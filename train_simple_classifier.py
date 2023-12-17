@@ -36,10 +36,10 @@ params = model.init(jax.random.PRNGKey(0), jnp.ones((1,) + img_shape))['params']
 lr_schedule = optax.piecewise_constant_schedule(
     init_value=1e-3,
     boundaries_and_scales={
-        15 * len(loader_dict["semi_supervised"]): 0.1
+        20 * len(loader_dict["semi_supervised"]): 0.1
     }
 )
-optimizer = optax.adam(1e-3)
+optimizer = optax.adam(lr_schedule)
 
 @jax.jit
 def train_step(state, batch):

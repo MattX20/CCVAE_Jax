@@ -35,10 +35,10 @@ print("Model set up!")
 lr_schedule = optax.piecewise_constant_schedule(
     init_value=1e-3,
     boundaries_and_scales={
-        15 * len(loader_dict["semi_supervised"]): 0.1
+        20 * len(loader_dict["semi_supervised"]): 0.1
     }
 )
-optimizer = optax.adam(1e-3)
+optimizer = optax.adam(lr_schedule)
 print("Optimizer set up!")
 
 # Set up SVI
