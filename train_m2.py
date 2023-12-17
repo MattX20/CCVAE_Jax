@@ -28,7 +28,7 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
 scale_factor = 0.1 * size_dict["supervised"]
 
 # Set up model
-m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 20, img_shape, scale_factor=scale_factor)
+m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 20, img_shape, scale_factor=scale_factor, distribution="bernoulli")
 print("Model set up!")
 
 # Set up optimizer
