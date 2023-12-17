@@ -16,7 +16,7 @@ from src.data_loading.loaders import get_data_loaders
 seed = 42
 
 # DATASET
-dataset_name = "MNIST"
+dataset_name = "MNIST" # use "CIFAR10"
 
 encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
 decoder_class = MNISTDecoder if dataset_name=="MNIST" else CIFAR10Decoder
