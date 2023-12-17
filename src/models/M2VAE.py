@@ -63,7 +63,8 @@ class M2VAE:
                  num_classes: int,
                  latent_dim: int,
                  img_shape: Tuple[int, int, int],
-                 scale_factor: float):
+                 scale_factor: float,
+                 distribution: str):
         
         self.encoder_class = encoder_class
         self.decoder_class = decoder_class
@@ -71,6 +72,7 @@ class M2VAE:
         self.latent_dim = latent_dim
         self.img_shape = img_shape
         self.scale_factor = scale_factor
+        self.distribution = distribution
 
         self.internal_encoder1 = M2FirstEncoder(self.encoder_class, self.num_classes, self.latent_dim)
         self.internal_encoder1.init(
@@ -110,7 +112,10 @@ class M2VAE:
             ys = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
             y_one_hot = jnp.eye(self.num_classes)[ys]
             loc = decoder(zs, y_one_hot)
-            numpyro.sample("x", dist.Bernoulli(loc, validate_args=False).to_event(3), obs=xs)
+
+            if self.distribution == "bernoulli":
+                numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
+
 
             return loc
 
@@ -157,7 +162,9 @@ class M2VAE:
             ys = numpyro.sample("y", dist.Categorical(alpha_prior))
             y_one_hot = jnp.eye(self.num_classes)[ys]
             loc = decoder(zs, y_one_hot)
-            numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
+
+            if self.distribution == "bernoulli":
+                numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
 
         return loc
 
