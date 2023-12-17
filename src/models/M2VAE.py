@@ -115,7 +115,8 @@ class M2VAE:
 
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
-
+            elif self.distribution == "laplace":
+                numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
 
             return loc
 
@@ -165,6 +166,8 @@ class M2VAE:
 
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
+            elif self.distribution == "laplace":
+                numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
 
         return loc
 

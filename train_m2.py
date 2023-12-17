@@ -9,15 +9,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from src.models.M2VAE import M2VAE
-from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder
+from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder
 from src.data_loading.loaders import get_data_loaders
 
 # Set up random seed
 seed = 42
 
+# DATASET
+dataset_name = "MNIST"
+
+encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
+decoder_class = MNISTDecoder if dataset_name=="MNIST" else CIFAR10Decoder
+distribution = "bernoulli" if dataset_name=="MNIST" else "laplace"
+
 # Data loading
 
-img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST", 
+img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name, 
                                           p_test=0.2, 
                                           p_val=0.2, 
                                           p_supervised=0.05, 
@@ -28,7 +35,14 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name="MNIST",
 scale_factor = 0.1 * size_dict["supervised"]
 
 # Set up model
-m2_vae = M2VAE(MNISTEncoder, MNISTDecoder, 10, 20, img_shape, scale_factor=scale_factor, distribution="bernoulli")
+m2_vae = M2VAE(encoder_class, 
+               decoder_class, 
+               10, 
+               50, 
+               img_shape, 
+               scale_factor=scale_factor, 
+               distribution=distribution
+)
 print("Model set up!")
 
 # Set up optimizer
