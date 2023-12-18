@@ -184,7 +184,7 @@ for batch in test_loader:
     ypred = m2_vae.classify(state[0][1][0], x)
     test_accuracy += jnp.mean(y == ypred)
 
-test_accuracy = np.mean(test_accuracy)
+test_accuracy = test_accuracy / len(test_loader)
 print(f"Test Accuracy: {test_accuracy}")
 
 print("Plot figures...")

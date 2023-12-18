@@ -185,8 +185,6 @@ class M2VAE:
             elif self.distribution == "laplace":
                 numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
 
-        return loc
-
     def guide_unsupervised(self, xs):
         batch_size = xs.shape[0]
 
