@@ -125,14 +125,14 @@ class M2VAE:
             alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
             ys = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
             y_one_hot = jnp.eye(self.num_classes)[ys]
+            
             loc = decoder(zs, y_one_hot)
+            numpyro.deterministic("loc", loc)
 
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
                 numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
-
-            return loc
 
     def guide_supervised(self, xs, ys):
         batch_size = xs.shape[0]
@@ -176,7 +176,9 @@ class M2VAE:
             alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
             ys = numpyro.sample("y", dist.Categorical(alpha_prior))
             y_one_hot = jnp.eye(self.num_classes)[ys]
+            
             loc = decoder(zs, y_one_hot)
+            numpyro.deterministic("loc", loc)
 
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
