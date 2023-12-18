@@ -15,7 +15,7 @@ def jax_supervised_collate_fn(batch):
 
     return inputs_np_reshaped, labels_np
 
-def jax_unsupervised_collate_fn(batch, img_shape):
+def jax_unsupervised_collate_fn(batch):
     """
         collate function to be used with torch dataloader to get jax
         compatible inputs, unsupervised case.
