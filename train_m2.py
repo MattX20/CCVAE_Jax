@@ -36,7 +36,7 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name,
                                           num_workers=6, 
                                           seed=seed)
 
-scale_factor = 0.1 * size_dict["supervised"]
+scale_factor = 0.1 * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
 
 # Set up model
 m2_vae = M2VAE(encoder_class, 
@@ -114,6 +114,7 @@ def train_step_unsupervised(state, batch):
 # Training
 semi_supervised_loader = loader_dict["semi_supervised"]
 validation_loader = loader_dict["validation"]
+test_loader = loader_dict["test"]
 
 print("Start training.")
 loss_rec_supervised = []
@@ -173,6 +174,18 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     )
 
 print("Training finished!")
+
+# Test
+test_accuracy = 0.0
+for batch in test_loader:
+    batch = jax.device_put(batch)
+    
+    x, y = batch
+    ypred = m2_vae.classify(state[0][1][0], x)
+    test_accuracy += jnp.mean(y == ypred)
+
+test_accuracy = np.mean(test_accuracy)
+print(f"Test Accuracy: {test_accuracy}")
 
 print("Plot figures...")
 plt.figure()
