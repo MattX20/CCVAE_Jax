@@ -2,6 +2,7 @@ from typing import Type, Tuple
 
 import jax.numpy as jnp
 from jax import random
+from jax.scipy.special import logsumexp
 
 from flax import linen as nn
 
@@ -106,8 +107,20 @@ class CCVAE:
 
         self.multiclass = multiclass
     
-    def model_supervised(self, xs, ys):
+    def model_supervised(self, xs, ys, k=100):
         batch_size = xs.shape[0]
+
+        encoder = flax_module(
+            "encoder", 
+            CCVAEEncoder(self.encoder_class, self.latent_dim), 
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        classifier = flax_module(
+            "classifier",
+            Classifier(self.num_classes),
+            z_class=jnp.ones((1, self.num_classes))
+        )
 
         cond_prior_class = flax_module(
             "cond_prior_class", 
@@ -150,6 +163,29 @@ class CCVAE:
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
                 numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
+
+
+        with numpyro.plate("sampling", k * batch_size):
+            loc_aux, scale_aux = encoder(xs)
+            loc_aux = jnp.broadcast_to(loc_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
+            scale_aux = jnp.broadcast_to(scale_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
+
+            zs = numpyro.sample("zs", dist.Normal(loc_aux, scale_aux).to_event(1))
+
+            z_class_aux, _ = jnp.split(zs, [self.num_classes], axis=-1)
+            y_prob_aux = classifier(z_class_aux)
+            
+            if self.multiclass:
+                d = dist.Bernoulli(y_prob_aux).to_event(1)
+                ys_aux = jnp.broadcast_to(ys, (k, batch_size, self.num_classes)).reshape(k * batch_size, -1)
+            else :
+                d = dist.Categorical(y_prob_aux)
+                ys_aux = jnp.broadcast_to(ys, (k, batch_size)).flatten()
+            
+            lqy_z = d.log_prob(ys_aux).reshape(k, batch_size)
+            lqy_x = logsumexp(lqy_z, axis=0) - jnp.log(k)
+
+            numpyro.deterministic("lqy_x", lqy_x)
     
     def guide_supervised(self, xs, ys):
         batch_size = xs.shape[0]
