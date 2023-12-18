@@ -3,7 +3,7 @@ from typing import Type, Tuple
 import jax.numpy as jnp
 from jax import random
 from jax.scipy.special import logsumexp
-
+from jax.lax import stop_gradient
 from flax import linen as nn
 
 import numpyro
@@ -211,10 +211,11 @@ class CCVAE:
                                      dist.Normal(z_class_loc, z_class_scale).to_event(1)
             )
 
-            z_style = numpyro.sample("z_style",
-                                     dist.Normal(z_style_loc, z_style_scale).to_event(1)
+            numpyro.sample("z_style",
+                           dist.Normal(z_style_loc, z_style_scale).to_event(1)
             )
-            y_prob = classifier(z_class)
+            z_class_no_grad = stop_gradient(z_class)
+            y_prob = classifier(z_class_no_grad)
 
             if self.multiclass:
                 numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1), obs=ys)
@@ -293,7 +294,8 @@ class CCVAE:
             numpyro.sample("z_style",
                            dist.Normal(z_style_loc, z_style_scale).to_event(1)
             )
-            y_prob = classifier(z_class)
+            z_class_no_grad = stop_gradient(z_class)
+            y_prob = classifier(z_class_no_grad)
 
             if self.multiclass:
                 numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1))
