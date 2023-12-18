@@ -134,7 +134,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
 
     loss_rec_supervised.append(loss_epoch_supervised)
     loss_rec_unsupervised.append(loss_epoch_unsupervised)
-    """
+    
     validation_accuracy = 0.0
 
     for batch in validation_loader:
@@ -145,7 +145,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     
     validation_accuracy /= len(validation_loader)
     validation_accuracy_rec.append(validation_accuracy)
-    """
+    
     print("\nEpoch:", 
           epoch, 
           "loss sup:", 
