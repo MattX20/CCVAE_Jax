@@ -58,18 +58,21 @@ class CondPrior(nn.Module):
 
     def __call__(self, y):
         loc = y * self.diag_loc_true + (1 - y) * self.diag_loc_false
-        scale = y * self.diag_scale_true + (1 - y) * self.diag_scale_false
-        return loc, nn.activation.softplus(scale)
+        scale_ = y * self.diag_scale_true + (1 - y) * self.diag_scale_false
+        scale = nn.activation.softplus(scale_)
+        return loc, scale
 
 class Classifier(nn.Module):
-    dim: int
+    num_classes: int
 
     def setup(self):
-        self.weight = self.param('weight', nn.initializers.ones, (self.dim,))
-        self.bias = self.param('bias', nn.initializers.zeros, (self.dim,))
+        self.weight = self.param('weight', nn.initializers.ones, (self.num_classes,))
+        self.bias = self.param('bias', nn.initializers.zeros, (self.num_classes,))
 
-    def __call__(self, x):
-        return x * self.weight + self.bias   
+    def __call__(self, z_class):
+        y = z_class * self.weight + self.bias
+        y_prob = nn.sigmoid(y)
+        return y_prob
 
 
 class CCVAE:
@@ -149,4 +152,171 @@ class CCVAE:
                 numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
     
     def guide_supervised(self, xs, ys):
-        
+        batch_size = xs.shape[0]
+
+        encoder = flax_module(
+            "encoder", 
+            CCVAEEncoder(self.encoder_class, self.latent_dim), 
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        classifier = flax_module(
+            "classifier",
+            Classifier(self.num_classes),
+            z_class=jnp.ones((1, self.num_classes))
+        )
+
+        with numpyro.plate("data", batch_size):
+            loc, scale = encoder(xs)
+            z_class_loc, z_style_loc = jnp.split(loc, [self.latent_class], axis=-1)
+            z_class_scale, z_style_scale = jnp.split(scale, [self.latent_class], axis=-1)
+
+            z_class = numpyro.sample("z_class", 
+                                     dist.Normal(z_class_loc, z_class_scale).to_event(1)
+            )
+
+            z_style = numpyro.sample("z_style",
+                                     dist.Normal(z_style_loc, z_style_scale).to_event(1)
+            )
+            y_prob = classifier(z_class)
+
+            if self.multiclass:
+                numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1), obs=ys)
+            else :
+                numpyro.sample("y", dist.Categorical(y_prob), obs=ys)
+    
+    def model_unsupervised(self, xs):
+        batch_size = xs.shape[0]
+
+        cond_prior_class = flax_module(
+            "cond_prior_class", 
+            CondPrior(self.latent_class), 
+            y=jnp.ones((1, self.latent_class))
+        ) 
+
+        decoder = flax_module(
+            "decoder", 
+            CCVAEDecoder(self.decoder_class), 
+            z=jnp.ones((1, self.latent_dim))
+        )
+
+        with numpyro.plate("data", batch_size):
+            if self.multiclass:
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / 2
+                y_one_hot = numpyro.sample("y", dist.Bernoulli(alpha_prior).to_event(1))
+            else :
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+                ys_p = numpyro.sample("y", dist.Categorical(alpha_prior))
+                y_one_hot = jnp.eye(self.num_classes)[ys_p]
+
+            z_class_prior_loc, z_class_prior_scale = cond_prior_class(y_one_hot)
+            z_class = numpyro.sample("z_class", 
+                                     dist.Normal(z_class_prior_loc, z_class_prior_scale).to_event(1)
+            )
+
+            z_style_prior_loc = jnp.zeros((batch_size, self.latent_style))
+            z_style_prior_scale = jnp.ones((batch_size, self.latent_style))
+            z_style = numpyro.sample("z_style",
+                                     dist.Normal(z_style_prior_loc, z_style_prior_scale).to_event(1)
+            )
+
+            z = jnp.concatenate([z_class, z_style], axis=-1)
+
+            loc = decoder(z)
+            numpyro.deterministic("loc", loc)
+
+            if self.distribution == "bernoulli":
+                numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
+            elif self.distribution == "laplace":
+                numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
+    
+    def guide_unsupervised(self, xs):
+        batch_size = xs.shape[0]
+
+        encoder = flax_module(
+            "encoder", 
+            CCVAEEncoder(self.encoder_class, self.latent_dim), 
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        classifier = flax_module(
+            "classifier",
+            Classifier(self.num_classes),
+            z_class=jnp.ones((1, self.num_classes))
+        )
+
+        with numpyro.plate("data", batch_size):
+            loc, scale = encoder(xs)
+            z_class_loc, z_style_loc = jnp.split(loc, [self.latent_class], axis=-1)
+            z_class_scale, z_style_scale = jnp.split(scale, [self.latent_class], axis=-1)
+
+            z_class = numpyro.sample("z_class", 
+                                     dist.Normal(z_class_loc, z_class_scale).to_event(1)
+            )
+
+            numpyro.sample("z_style",
+                           dist.Normal(z_style_loc, z_style_scale).to_event(1)
+            )
+            y_prob = classifier(z_class)
+
+            if self.multiclass:
+                numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1))
+            else :
+                numpyro.sample("y", dist.Categorical(y_prob))
+    
+    """
+    def model_classify(self, xs, ys):
+        batch_size = xs.shape[0]
+
+        encoder = flax_module(
+            "encoder", 
+            CCVAEEncoder(self.encoder_class, self.latent_dim), 
+            x=jnp.ones((1,) + self.img_shape)
+        )
+
+        classifier = flax_module(
+            "classifier",
+            Classifier(self.num_classes),
+            z_class=jnp.ones((1, self.num_classes))
+        )
+
+        with numpyro.plate("data", batch_size):
+            loc, scale = encoder(xs)
+            z_class_loc, _ = jnp.split(loc, [self.latent_class], axis=-1)
+            z_class_scale, _ = jnp.split(scale, [self.latent_class], axis=-1)
+
+            z_class = numpyro.sample("z_class_aux", 
+                                     dist.Normal(z_class_loc, z_class_scale).to_event(1)
+            )
+
+            y_prob = classifier(z_class)
+
+            with numpyro.handlers.scale(scale=self.scale_factor):
+                if self.multiclass:
+                    numpyro.sample("y_aux", dist.Bernoulli(y_prob).to_event(1), obs=ys)
+                else :
+                    numpyro.sample("y_aux", dist.Categorical(y_prob), obs=ys)
+    
+    def guide_classify(self, xs, ys):
+        batch_size = xs.shape[0]
+
+        cond_prior_class = flax_module(
+            "cond_prior_class", 
+            CondPrior(self.latent_class), 
+            y=jnp.ones((1, self.latent_class))
+        )
+
+        with numpyro.plate("data", batch_size):
+            if self.multiclass:
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / 2
+                y_one_hot = numpyro.sample("y_aux", dist.Bernoulli(alpha_prior).to_event(1), obs=ys)
+            else :
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+                ys_p = numpyro.sample("y_aux", dist.Categorical(alpha_prior), obs=ys)
+                y_one_hot = jnp.eye(self.num_classes)[ys_p]
+
+            z_class_prior_loc, z_class_prior_scale = cond_prior_class(y_one_hot)
+            numpyro.sample("z_class_aux", 
+                           dist.Normal(z_class_prior_loc, z_class_prior_scale).to_event(1)
+            )
+    """
