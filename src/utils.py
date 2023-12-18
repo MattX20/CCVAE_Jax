@@ -7,5 +7,5 @@ def compute_accuracy(logits, labels):
         labels are expected to be of shape (batch_size, 1).
         logits are expected to be of shape (batch_size, num_classes).
     """
-    preds = jnp.argmax(logits, axis=1).reshape((-1, 1))
+    preds = jnp.argmax(logits, axis=1)
     return jnp.mean(preds == labels)

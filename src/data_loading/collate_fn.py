@@ -12,9 +12,9 @@ def jax_supervised_collate_fn(batch, img_shape):
     labels_np = np.array(labels)
 
     inputs_np_reshaped = inputs_np.reshape((-1,) + img_shape)
-    labels_np_reshaped = labels_np.reshape((-1, 1))
+    # labels_np_reshaped = labels_np.reshape((-1, 1))
 
-    return inputs_np_reshaped, labels_np_reshaped
+    return inputs_np_reshaped, labels_np
 
 def jax_unsupervised_collate_fn(batch, img_shape):
     """
