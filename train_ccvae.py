@@ -152,8 +152,8 @@ for epoch in tqdm(range(1, num_epochs + 1)):
           loss_epoch_supervised, 
           "loss unsup:", 
           loss_epoch_unsupervised, 
-          #"val acc:", 
-          #validation_accuracy
+          "val acc:", 
+          validation_accuracy
     )
 
 print("Training finished!")

@@ -113,7 +113,7 @@ class CCVAE:
             x=jnp.ones((1,) + self.img_shape),
         )
 
-        self.internal_classifier = CCVAEEncoder(self.encoder_class, self.latent_dim)
+        self.internal_classifier = Classifier(self.num_classes)
         self.internal_classifier.init(
             random.PRNGKey(0), 
             z_class=jnp.ones((1, self.num_classes))
@@ -328,14 +328,12 @@ class CCVAE:
     
     def classify(self, params_dict, xs):
         loc, _ = self.internal_encoder.apply({"params": params_dict["encoder$params"]}, xs)
-
-        loc_class =  jnp.split(loc, [self.latent_class], axis=-1)
-
+        loc_class, _ =  jnp.split(loc, [self.latent_class], axis=-1)
         y_prob = self.internal_classifier.apply({"params": params_dict["classifier$params"]}, loc_class)
 
         if self.multiclass:
-            y_pred = jnp.argmax(y_prob, axis=1)
-        else:
             y_pred = jnp.round(y_prob)
+        else:
+            y_pred = jnp.argmax(y_prob, axis=1)
         
         return y_pred
