@@ -106,6 +106,30 @@ class CCVAE:
         self.distribution = distribution
 
         self.multiclass = multiclass
+
+        self.internal_encoder = CCVAEEncoder(self.encoder_class, self.latent_dim)
+        self.internal_encoder.init(
+            random.PRNGKey(0), 
+            x=jnp.ones((1,) + self.img_shape),
+        )
+
+        self.internal_classifier = CCVAEEncoder(self.encoder_class, self.latent_dim)
+        self.internal_classifier.init(
+            random.PRNGKey(0), 
+            z_class=jnp.ones((1, self.num_classes))
+        )
+
+        self.internal_cond_prior_class = CondPrior(self.latent_class)
+        self.internal_cond_prior_class.init(
+            random.PRNGKey(0), 
+            y=jnp.ones((1, self.latent_class))
+        )
+
+        self.internal_decoder = CCVAEDecoder(self.decoder_class)
+        self.internal_decoder.init(
+            random.PRNGKey(0), 
+            z=jnp.ones((1, self.latent_dim))
+        )
     
     def model_supervised(self, xs, ys, k=100):
         batch_size = xs.shape[0]
@@ -301,3 +325,17 @@ class CCVAE:
                 numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1))
             else :
                 numpyro.sample("y", dist.Categorical(y_prob))
+    
+    def classify(self, params_dict, xs):
+        loc, _ = self.internal_encoder.apply({"params": params_dict["encoder$params"]}, xs)
+
+        loc_class =  jnp.split(loc, [self.latent_class], axis=-1)
+
+        y_prob = self.internal_classifier.apply({"params": params_dict["classifier$params"]}, loc_class)
+
+        if self.multiclass:
+            y_pred = jnp.argmax(y_prob, axis=1)
+        else:
+            y_pred = jnp.round(y_prob)
+        
+        return y_pred
