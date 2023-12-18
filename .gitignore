@@ -9,6 +9,3 @@ model_weights/
 
 # Ignore python pycache
 __pycache__/
-
-# Ignore .pkl
-*.pkl
