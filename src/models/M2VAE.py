@@ -11,6 +11,12 @@ import numpyro.distributions as dist
 
 
 class M2FirstEncoder(nn.Module):
+    """
+        M2FirstEncoder takes as input an element of the dataset, and returns an (intermediate)
+        latent variable h, and logits over the number of possible classes.
+        This is different from the original M2, where the encoder and the classifier are
+        separated networks.
+    """
     encoder_class: Type[nn.Module]
     num_classes: int
     latent_dim: int
@@ -30,6 +36,10 @@ class M2FirstEncoder(nn.Module):
         return h, y
 
 class M2SecondEncoder(nn.Module):
+    """
+        M2SecondEncoder takes as input a latent variable h (outputed from M2FirstEncoder) and
+        a one hot class representation, and returns a loc and a scale to sample the latent z.
+    """
     latent_dim: int
 
     @nn.compact
@@ -42,6 +52,10 @@ class M2SecondEncoder(nn.Module):
         return loc, scale
 
 class M2Decoder(nn.Module):
+    """
+        Classical M2 decoder. Takes a latent variable and a one hot class representation, and 
+        returns a reconstructed image.
+    """
     decoder_class: Type[nn.Module]
 
     def setup(self):
@@ -214,8 +228,8 @@ class M2VAE:
     def guide_classify(self, xs, ys):
         pass
 
-    def classify(self, state, xs):
-        _, yprob = self.internal_encoder1.apply({"params": state[0][1][0]["encoder1$params"]}, xs)
+    def classify(self, params_dict, xs):
+        _, yprob = self.internal_encoder1.apply({"params": params_dict["encoder1$params"]}, xs)
         ypred = jnp.argmax(yprob, axis=1)
 
         return ypred

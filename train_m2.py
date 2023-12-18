@@ -1,3 +1,6 @@
+from pathlib import Path
+import pickle
+
 import jax
 from jax import jit, device_put
 import jax.numpy as jnp
@@ -11,6 +14,7 @@ import matplotlib.pyplot as plt
 from src.models.M2VAE import M2VAE
 from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder
 from src.data_loading.loaders import get_data_loaders
+
 
 # Set up random seed
 seed = 42
@@ -150,7 +154,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     for batch in validation_loader:
         batch = device_put(batch)
         x, y = batch
-        ypred = m2_vae.classify(state, x)
+        ypred = m2_vae.classify(state[0][1][0], x)
         validation_accuracy += jnp.mean(y == ypred)
     
     validation_accuracy /= len(validation_loader)
@@ -167,7 +171,10 @@ for epoch in tqdm(range(1, num_epochs + 1)):
           "val acc:", 
           validation_accuracy
     )
-    
+
+print("Training finished!")
+
+print("Plot figures...")
 plt.figure()
 plt.plot(loss_rec_supervised, color="red", label="supervised")
 plt.plot(loss_rec_classify, color="blue", label="classify")
@@ -179,3 +186,19 @@ plt.figure()
 plt.plot(validation_accuracy_rec, label="accuracy")
 plt.legend(loc="best")
 plt.savefig("result_acc.png")
+
+print("Save weights...")
+folder_path = Path("./model_weights")
+
+if not folder_path.exists():
+    folder_path.mkdir(parents=True, exist_ok=True)
+    print(f"Folder '{folder_path}' created.")
+
+save_file = "m2" + dataset_name + ".pkl"
+file_path = folder_path / save_file
+
+with open(file_path, 'wb') as file:
+    pickle.dump(state[0][1][0], file)
+
+print(f"Data saved to {file_path}.")
+print("Done.")
