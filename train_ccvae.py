@@ -37,7 +37,6 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name,
                                           num_workers=6, 
                                           seed=seed)
 
-scale_factor = 0.1 * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
 
 # Set up model
 ccvae = CCVAE(encoder_class, 
@@ -45,7 +44,6 @@ ccvae = CCVAE(encoder_class,
                10, 
                50, 
                img_shape, 
-               scale_factor=scale_factor, 
                distribution=distribution,
                multiclass=False
 )

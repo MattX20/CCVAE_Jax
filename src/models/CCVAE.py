@@ -90,7 +90,6 @@ class CCVAE:
                  num_classes: int,
                  latent_dim: int,
                  img_shape: Tuple[int, int, int],
-                 scale_factor: float,
                  distribution: str,
                  multiclass: bool = False):
         
@@ -105,7 +104,6 @@ class CCVAE:
         self.latent_style = latent_dim - num_classes
 
         self.img_shape = img_shape
-        self.scale_factor = scale_factor
         self.distribution = distribution
 
         self.multiclass = multiclass
