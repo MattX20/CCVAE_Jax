@@ -71,7 +71,7 @@ class Classifier(nn.Module):
     def setup(self):
         self.weight = self.param('weight', nn.initializers.ones, (self.num_classes,))
         self.bias = self.param('bias', nn.initializers.zeros, (self.num_classes,))
-        self.activation = nn.sigmoid if self.multiclass else nn.sigmoid
+        self.activation = nn.sigmoid if self.multiclass else nn.softmax
 
     def __call__(self, z_class):
         y = z_class * self.weight + self.bias
@@ -327,36 +327,7 @@ class CCVAE:
                 numpyro.sample("y", dist.Bernoulli(y_prob).to_event(1))
             else :
                 numpyro.sample("y", dist.Categorical(y_prob))
-    """
-    def model_classify(self, xs, ys):
-        batch_size = xs.shape[0]
 
-        encoder = flax_module(
-            "encoder", 
-            CCVAEEncoder(self.encoder_class, self.latent_dim), 
-            x=jnp.ones((1,) + self.img_shape)
-        )
-
-        classifier = flax_module(
-            "classifier",
-            Classifier(self.num_classes),
-            z_class=jnp.ones((1, self.num_classes))
-        )
-
-        with numpyro.plate("data", batch_size):
-            loc, _ = encoder(xs)
-            loc_class, _ = jnp.split(loc, [self.latent_class], axis=-1)
-
-            y_prob = classifier(loc_class)
-
-            if self.multiclass:
-                numpyro.sample("yaux", dist.Bernoulli(y_prob).to_event(1), obs=ys)
-            else :
-                numpyro.sample("yaux", dist.Categorical(y_prob), obs=ys)
-
-    def guide_classify(self, xs, ys):
-        pass
-    """
     def classify(self, params_dict, xs):
         loc, _ = self.internal_encoder.apply({"params": params_dict["encoder$params"]}, xs)
         loc_class, _ =  jnp.split(loc, [self.latent_class], axis=-1)
