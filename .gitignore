@@ -4,8 +4,8 @@ data/
 # Ignore venv
 venv/
 
+# Ignore model weights
+model_weights/
+
 # Ignore python pycache
 __pycache__/
-
-# Ignore .pkl
-*.pkl

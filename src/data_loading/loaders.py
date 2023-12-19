@@ -65,25 +65,25 @@ def get_data_loaders(dataset_name: str,
                              batch_size=batch_size, 
                              shuffle=shuffle,
                              num_workers=num_workers, 
-                             collate_fn=lambda batch : jax_supervised_collate_fn(batch, img_shape)
+                             collate_fn=jax_supervised_collate_fn
                              )
     val_loader = DataLoader(val_dataset, 
                              batch_size=batch_size, 
                              shuffle=shuffle,
                              num_workers=num_workers, 
-                             collate_fn=lambda batch : jax_supervised_collate_fn(batch, img_shape)
+                             collate_fn=jax_supervised_collate_fn
                              )
     supervised_loader = DataLoader(supervised_dataset, 
                              batch_size=batch_size, 
                              shuffle=shuffle,
                              num_workers=num_workers, 
-                             collate_fn=lambda batch : jax_supervised_collate_fn(batch, img_shape)
+                             collate_fn=jax_supervised_collate_fn
                              )
     unsupervised_loader = DataLoader(unsupervised_dataset, 
                              batch_size=batch_size, 
                              shuffle=shuffle,
                              num_workers=num_workers, 
-                             collate_fn=lambda batch : jax_unsupervised_collate_fn(batch, img_shape)
+                             collate_fn=jax_unsupervised_collate_fn
                              )
     
     semi_supervised_loader = SemiSupervisedDataLoader(supervised_loader=supervised_loader, 
