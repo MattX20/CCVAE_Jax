@@ -28,9 +28,9 @@ class CCVAEEncoder(nn.Module):
         x = self.encoder(x)
         
         loc = self.fc_loc(x)
-        log_scale = self.fc_scale(x)
-        scale = jnp.exp(log_scale)
-
+        scale_ = self.fc_scale(x)
+        scale_ = nn.activation.softplus(scale_)
+        scale = jnp.clip(scale_, a_min=1e-3)
         return loc, scale
 
 class CCVAEDecoder(nn.Module):
