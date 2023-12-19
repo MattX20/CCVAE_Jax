@@ -46,9 +46,9 @@ class M2SecondEncoder(nn.Module):
     def __call__(self, h, y_one_hot):
         hy = jnp.concatenate([h, y_one_hot], axis=-1)
         loc = nn.Dense(features=self.latent_dim)(hy)
-        log_scale = nn.Dense(features=self.latent_dim)(hy)
-        scale = jnp.exp(log_scale)
-
+        scale_ = nn.Dense(features=self.latent_dim)(hy)
+        scale_ = nn.activation.softplus(scale_)
+        scale = jnp.clip(scale_, a_min=1e-3)
         return loc, scale
 
 class M2Decoder(nn.Module):

@@ -60,7 +60,8 @@ class CondPrior(nn.Module):
     def __call__(self, y):
         loc = y * self.diag_loc_true + (1 - y) * self.diag_loc_false
         scale_ = y * self.diag_scale_true + (1 - y) * self.diag_scale_false
-        scale = nn.activation.softplus(scale_)
+        scale_ = nn.activation.softplus(scale_)
+        scale = jnp.clip(scale_, a_min=1e-3)
         return loc, scale
 
 class Classifier(nn.Module):
