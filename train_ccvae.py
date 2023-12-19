@@ -65,7 +65,7 @@ print("Optimizer set up!")
 svi_supervised = SVI(ccvae.model_supervised, 
             ccvae.guide_supervised, 
             optim=optimizer, 
-            loss=Trace_ELBO()
+            loss=CCVAE_ELBO()
 )
 
 svi_unsupervised = SVI(ccvae.model_unsupervised, 
