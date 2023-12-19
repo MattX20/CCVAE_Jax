@@ -192,27 +192,26 @@ class CCVAE:
                 numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
 
 
-        with numpyro.plate("sampling", k * batch_size):
-            loc_aux, scale_aux = encoder(xs)
-            loc_aux = jnp.broadcast_to(loc_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
-            scale_aux = jnp.broadcast_to(scale_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
+        loc_aux, scale_aux = encoder(xs)
+        loc_aux = jnp.broadcast_to(loc_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
+        scale_aux = jnp.broadcast_to(scale_aux, (k, batch_size, self.latent_dim)).reshape(k * batch_size, -1)
 
-            zs = numpyro.sample("zs", dist.Normal(loc_aux, scale_aux).to_event(1))
+        zs = numpyro.sample("zs", dist.Normal(loc_aux, scale_aux).to_event(1))
 
-            z_class_aux, _ = jnp.split(zs, [self.num_classes], axis=-1)
-            y_prob_aux = classifier(z_class_aux)
-            
-            if self.multiclass:
-                d = dist.Bernoulli(y_prob_aux).to_event(1)
-                ys_aux = jnp.broadcast_to(ys, (k, batch_size, self.num_classes)).reshape(k * batch_size, -1)
-            else :
-                d = dist.Categorical(y_prob_aux)
-                ys_aux = jnp.broadcast_to(ys, (k, batch_size)).flatten()
-            
-            lqy_z = d.log_prob(ys_aux).reshape(k, batch_size)
-            lqy_x = logsumexp(lqy_z, axis=0) - jnp.log(k)
+        z_class_aux, _ = jnp.split(zs, [self.num_classes], axis=-1)
+        y_prob_aux = classifier(z_class_aux)
+        
+        if self.multiclass:
+            d = dist.Bernoulli(y_prob_aux).to_event(1)
+            ys_aux = jnp.broadcast_to(ys, (k, batch_size, self.num_classes)).reshape(k * batch_size, -1)
+        else :
+            d = dist.Categorical(y_prob_aux)
+            ys_aux = jnp.broadcast_to(ys, (k, batch_size)).flatten()
+        
+        lqy_z = d.log_prob(ys_aux).reshape(k, batch_size)
+        lqy_x = logsumexp(lqy_z, axis=0) - jnp.log(k)
 
-            numpyro.deterministic("lqy_x", lqy_x)
+        numpyro.deterministic("lqy_x", lqy_x)
     
     def guide_supervised(self, xs, ys):
         batch_size = xs.shape[0]
