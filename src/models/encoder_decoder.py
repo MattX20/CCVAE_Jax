@@ -74,7 +74,7 @@ class CIFAR10Encoder(nn.Module):
         x = nn.relu(x)
 
         x = x.reshape((x.shape[0], -1))
-        
+        print(x.shape)
         return x
     
 
