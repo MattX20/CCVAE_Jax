@@ -1,6 +1,6 @@
 from pathlib import Path
 import pickle
-
+import argparse
 import jax
 from jax import jit, device_put
 import jax.numpy as jnp
@@ -12,39 +12,51 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from src.models.M2VAE import M2VAE
-from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder, CELEBADecoder, CELEBAEncoder
+from src.models.encoder_decoder import get_encoder_decoder
 from src.data_loading.loaders import get_data_loaders
+from src.models.config import get_config
+import wandb
 
 
+parser = argparse.ArgumentParser(description='Train M2VAE')
+parser.add_argument('--dataset', type=str, default="MNIST", help='Dataset to use (MNIST, CIFAR10, CELEBA, CELEBA128)')
+parser.add_argument('--seed', type=int, default=42, help='Random seed')
+parser.add_argument('--num_epochs', type=int, default=30, help='Number of epochs')
+parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
+parser.add_argument('--lr', type=float, default=1e-3, help='Initial Learning rate')
+parser.add_argument('--p_test', type=float, default=0.1, help='Proportion of test set')
+parser.add_argument('--p_val', type=float, default=0.1, help='Proportion of validation set')
+parser.add_argument('--p_supervised', type=float, default=0.05, help='Proportion of supervised data')
+parser.add_argument('--freq_lr_change', type=int, default=20, help='Frequency of learning rate change')
+
+args = parser.parse_args()
 # Set up random seed
-seed = 42
-
+seed = args.seed
 # DATASET
-dataset_name = "MNIST" # use "CIFAR10"
+dataset_name = args.dataset  #"CELEBA" #"MNIST" # use "CIFAR10"
 
-encoder_class = MNISTEncoder if dataset_name=="MNIST" else (CIFAR10Encoder if dataset_name=="CIFAR10" else CELEBAEncoder)
-decoder_class = MNISTDecoder if dataset_name=="MNIST" else (CIFAR10Decoder if dataset_name=="CIFAR10" else CELEBADecoder)
-distribution = "bernoulli" if dataset_name=="MNIST" else "laplace"
+config = get_config(dataset_name)
+encoder_class, decoder_class = get_encoder_decoder(dataset_name)
+
+distribution = config["distribution"]
 
 # Data loading
 
 img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name, 
-                                          p_test=0.2, 
-                                          p_val=0.2, 
-                                          p_supervised=0.05, 
-                                          batch_size=64, 
+                                          p_test=args.p_test,
+                                          p_val=args.p_val,
+                                          p_supervised=args.p_supervised, 
+                                          batch_size=args.batch_size,
                                           num_workers=6, 
                                           seed=seed)
 
-multiplier = 0.1 if dataset_name=="MNIST" else 0.3
-
-scale_factor = multiplier * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
+scale_factor = config['scale_factor'] * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
 
 # Set up model
 m2_vae = M2VAE(encoder_class, 
                decoder_class, 
-               10, 
-               50, 
+                config['num_classes'],
+                config['latent_dim'], 
                img_shape, 
                scale_factor=scale_factor, 
                distribution=distribution
@@ -53,9 +65,9 @@ print("Model set up!")
 
 # Set up optimizer
 lr_schedule = optax.piecewise_constant_schedule(
-    init_value=1e-3,
+    init_value=args.lr,
     boundaries_and_scales={
-        20 * len(loader_dict["semi_supervised"]): 0.1
+        args.freq_lr_change * len(loader_dict["semi_supervised"]): 0.5
     }
 )
 optimizer = optax.adam(lr_schedule)
@@ -118,14 +130,20 @@ semi_supervised_loader = loader_dict["semi_supervised"]
 validation_loader = loader_dict["validation"]
 test_loader = loader_dict["test"]
 
+# Set up wandb
+
+wandb.init(project="m2vae", name=f"m2vae_{dataset_name}_p_supervised_{args.p_supervised}")
+wandb.config.update(args)
+
 print("Start training.")
 loss_rec_supervised = []
 loss_rec_unsupervised = []
 loss_rec_classify = []
 validation_accuracy_rec = []
 
-num_epochs = 30
-for epoch in tqdm(range(1, num_epochs + 1)):
+num_epochs = args.num_epochs
+progress_bar = tqdm(range(1, num_epochs + 1))
+for epoch in range(1, num_epochs + 1):
     running_loss = 0.0
 
     loss_rec_step_supervised = []
@@ -163,17 +181,18 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     validation_accuracy /= len(validation_loader)
     validation_accuracy_rec.append(validation_accuracy)
 
-    print("\nEpoch:", 
-          epoch, 
-          "loss sup:", 
-          loss_epoch_supervised, 
-          "loss unsup:", 
-          loss_epoch_unsupervised, 
-          "loss class:",
-          loss_epoch_classify,
-          "val acc:", 
-          validation_accuracy
-    )
+    logs = {"loss_sup": loss_epoch_supervised,
+            "loss_unsup": loss_epoch_unsupervised,
+            "loss_class": loss_epoch_classify,
+            "val_acc": validation_accuracy
+    }
+
+    wandb.log(logs)
+
+    progress_bar.set_postfix(logs)
+    progress_bar.update()
+
+progress_bar.close()
 
 print("Training finished!")
 
@@ -189,18 +208,18 @@ for batch in test_loader:
 test_accuracy = test_accuracy / len(test_loader)
 print(f"Test Accuracy: {test_accuracy}")
 
-print("Plot figures...")
-plt.figure()
-plt.plot(loss_rec_supervised, color="red", label="supervised")
-plt.plot(loss_rec_classify, color="blue", label="classify")
-plt.plot(loss_rec_unsupervised, color="green", label="unsupervised")
-plt.legend(loc="best")
-plt.savefig("result_loss.png")
+# print("Plot figures...")
+# plt.figure()
+# plt.plot(loss_rec_supervised, color="red", label="supervised")
+# plt.plot(loss_rec_classify, color="blue", label="classify")
+# plt.plot(loss_rec_unsupervised, color="green", label="unsupervised")
+# plt.legend(loc="best")
+# plt.savefig("result_loss.png")
 
-plt.figure()
-plt.plot(validation_accuracy_rec, label="accuracy")
-plt.legend(loc="best")
-plt.savefig("result_acc.png")
+# plt.figure()
+# plt.plot(validation_accuracy_rec, label="accuracy")
+# plt.legend(loc="best")
+# plt.savefig("result_acc.png")
 
 print("Save weights...")
 folder_path = Path("./model_weights")
@@ -209,11 +228,11 @@ if not folder_path.exists():
     folder_path.mkdir(parents=True, exist_ok=True)
     print(f"Folder '{folder_path}' created.")
 
-save_file = "m2" + dataset_name + ".pkl"
+save_file = "m2vae_" + dataset_name + "_p_supervised_" + str(args.p_supervised) + ".pkl"
 file_path = folder_path / save_file
 
 with open(file_path, 'wb') as file:
     pickle.dump(state[0][1][0], file)
 
-print(f"Data saved to {file_path}.")
+print(f"Weights saved to {file_path}.")
 print("Done.")

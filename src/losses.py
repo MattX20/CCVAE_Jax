@@ -1,5 +1,6 @@
 from numpyro.handlers import seed
 from numpyro.infer import ELBO
+import jax
 import jax.numpy as jnp
 from jax import random
 from jax import vmap
@@ -15,6 +16,14 @@ def binary_cross_entropy_loss(reconstructed_x, x):
     reconstructed_x = jnp.clip(reconstructed_x, epsilon, 1 - epsilon)
     bce_loss = -(x * jnp.log(reconstructed_x) + (1 - x) * jnp.log(1 - reconstructed_x))
     return jnp.mean(bce_loss)
+
+def cross_entropy_loss(logits, y):
+    """
+        cross_entropy_loss between y and logits.
+        y is expected to be of shape (batch_size, 1).
+        logits is expected to be of shape (batch_size, num_classes).
+    """
+    return -jnp.mean(jnp.sum(y * jax.nn.log_softmax(logits), axis=-1))
 
 class CCVAE_ELBO(ELBO):
     def loss(self, rng_key, param_map, model, guide, *args, **kwargs):

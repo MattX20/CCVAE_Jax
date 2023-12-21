@@ -6,11 +6,12 @@ import numpy as np
 from flax.training import train_state
 from tqdm import tqdm
 
-from src.models.encoder_decoder import CIFAR10Encoder, MNISTEncoder
+from src.models.encoder_decoder import CIFAR10Encoder, MNISTEncoder, CELEBAEncoder, MNISTDecoder, CIFAR10Decoder, CELEBADecoder, get_encoder_decoder
 from src.models.simple_classifier import SimpleClassifier
-from src.losses import cross_entropy_loss
+from src.losses import cross_entropy_loss, binary_cross_entropy_loss
 from src.utils import compute_accuracy
 from src.data_loading.loaders import get_data_loaders
+from src.models.config import get_config
 
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
@@ -20,11 +21,15 @@ print(xla_bridge.get_backend().platform)
 seed = 42
 
 # DATASET
-dataset_name = "MNIST" # use "CIFAR10"
+dataset_name = "CELEBA" #"MNIST" # use "CIFAR10"
 
-encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
+config = get_config(dataset_name)
+encoder_class, decoder_class = get_encoder_decoder(dataset_name)
+
+distribution = config["distribution"]
 
 # Data loading
+
 img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name, 
                                           p_test=0.2, 
                                           p_val=0.2, 
@@ -34,8 +39,14 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name,
                                           seed=seed)
 
 # Initialize the model parameters
-model = SimpleClassifier(encoder=encoder_class, num_classes=10)
+model = SimpleClassifier(encoder=encoder_class, num_classes=config['num_classes'])
 params = model.init(jax.random.PRNGKey(0), jnp.ones((1,) + img_shape))['params']
+
+# Initialize the loss function (criterion)
+if config['multiclass']:
+    criterion = binary_cross_entropy_loss
+else:
+    criterion = cross_entropy_loss
 
 # Create an optimizer
 lr_schedule = optax.piecewise_constant_schedule(
@@ -54,7 +65,7 @@ def train_step(state, batch):
         y = y.reshape(-1, 1)
 
         logits = model.apply({'params': params}, X)
-        loss = cross_entropy_loss(logits, y)
+        loss = criterion(logits, y)
         return loss, logits
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
