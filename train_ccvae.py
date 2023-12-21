@@ -29,6 +29,7 @@ parser.add_argument('--p_test', type=float, default=0.1, help='Proportion of tes
 parser.add_argument('--p_val', type=float, default=0.1, help='Proportion of validation set')
 parser.add_argument('--p_supervised', type=float, default=0.05, help='Proportion of supervised data')
 parser.add_argument('--freq_lr_change', type=int, default=20, help='Frequency of learning rate change')
+parser.add_argument('--warmup', type=int, default=10, help='Number of warmup epochs')
 
 args = parser.parse_args()
 # Set up random seed
@@ -67,9 +68,12 @@ ccvae = CCVAE(encoder_class,
 print("Model set up!")
 
 # Set up optimizer
+init_lr = 3e-5
+final_lr = args.lr
 lr_schedule = optax.piecewise_constant_schedule(
-    init_value=args.lr,
+    init_value=init_lr,
     boundaries_and_scales={
+        args.warmup * len(loader_dict["semi_supervised"]): final_lr/init_lr,
         args.freq_lr_change * len(loader_dict["semi_supervised"]): 0.5
     }
 )
