@@ -30,6 +30,7 @@ parser.add_argument('--p_val', type=float, default=0.1, help='Proportion of vali
 parser.add_argument('--p_supervised', type=float, default=0.05, help='Proportion of supervised data')
 parser.add_argument('--freq_lr_change', type=int, default=20, help='Frequency of learning rate change')
 parser.add_argument('--warmup', type=int, default=10, help='Number of warmup epochs')
+parser.add_argument('--beta', type=float, default=1.0, help='Beta parameter for the ELBO')
 
 args = parser.parse_args()
 # Set up random seed
@@ -63,6 +64,7 @@ ccvae = CCVAE(encoder_class,
                config['latent_dim'], 
                img_shape, 
                distribution=distribution,
+               beta=args.beta,
                multiclass=config['multiclass'],
 )
 print("Model set up!")

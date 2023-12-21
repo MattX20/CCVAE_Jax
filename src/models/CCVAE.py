@@ -91,6 +91,7 @@ class CCVAE:
                  latent_dim: int,
                  img_shape: Tuple[int, int, int],
                  distribution: str,
+                 beta: float = 1.,
                  multiclass: bool = False):
         
         assert latent_dim > num_classes, "The dimention of the latent must be greater than the number of classes"
@@ -107,7 +108,7 @@ class CCVAE:
         self.distribution = distribution
 
         self.multiclass = multiclass
-
+        self.beta = beta
         self.internal_encoder = CCVAEEncoder(self.encoder_class, self.latent_dim)
         self.internal_encoder.init(
             random.PRNGKey(0), 
@@ -187,7 +188,7 @@ class CCVAE:
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
-                numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
+                numpyro.sample("x", dist.Laplace(loc, scale=self.beta).to_event(3), obs=xs)
 
 
         loc_aux, scale_aux = encoder(xs)
@@ -289,7 +290,7 @@ class CCVAE:
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
-                numpyro.sample("x", dist.Laplace(loc).to_event(3), obs=xs)
+                numpyro.sample("x", dist.Laplace(loc, scale = self.beta).to_event(3), obs=xs)
     
     def guide_unsupervised(self, xs):
         batch_size = xs.shape[0]

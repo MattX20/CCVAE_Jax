@@ -11,7 +11,7 @@ mnist_config = {
 
 cifar10_config = {
     'num_classes' : 10,
-    'latent_dim' : 128,
+    'latent_dim' : 256,
     'img_shape' : (32, 32, 3),
     'distribution' : "laplace",
     'multiclass' : False,
