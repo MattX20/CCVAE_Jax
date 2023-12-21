@@ -59,8 +59,8 @@ m2_vae = M2VAE(encoder_class,
                 config['latent_dim'], 
                img_shape, 
                scale_factor=scale_factor, 
-               distribution=distribution
-)
+               distribution=distribution,
+               multiclass=config['multiclass'])
 print("Model set up!")
 
 # Set up optimizer
@@ -92,10 +92,18 @@ svi_classify = SVI(m2_vae.model_classify,
                    loss=Trace_ELBO()
 )
 
+# Set up initial state
+
+if config['multiclass']:
+    ys = jnp.ones((1, config['num_classes']), dtype=jnp.int32)
+else:
+    ys = jnp.ones((1,), dtype=jnp.int32)
+
+print(ys.shape)
 state = svi_supervised.init(
     random.PRNGKey(seed), 
     xs=jnp.ones((1,)+img_shape), 
-    ys=jnp.ones((1), dtype=jnp.int32)
+    ys=ys
 )
 svi_unsupervised.init(
     random.PRNGKey(seed), 
@@ -104,7 +112,7 @@ svi_unsupervised.init(
 svi_classify.init(
     random.PRNGKey(seed), 
     xs=jnp.ones((1,)+img_shape), 
-    ys=jnp.ones((1), dtype=jnp.int32)
+    ys=ys
 )
 print("SVI set up!")
 

@@ -109,6 +109,7 @@ class CCVAE:
 
         self.multiclass = multiclass
         self.beta = beta
+        print("Beta factor: ", self.beta)
         self.internal_encoder = CCVAEEncoder(self.encoder_class, self.latent_dim)
         self.internal_encoder.init(
             random.PRNGKey(0), 
@@ -188,7 +189,7 @@ class CCVAE:
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
-                numpyro.sample("x", dist.Laplace(loc, scale=self.beta).to_event(3), obs=xs)
+                numpyro.sample("x",  dist.Laplace(loc, scale = self.beta*jnp.ones_like(loc)).to_event(3), obs=xs)
 
 
         loc_aux, scale_aux = encoder(xs)
@@ -290,7 +291,7 @@ class CCVAE:
             if self.distribution == "bernoulli":
                 numpyro.sample("x", dist.Bernoulli(loc).to_event(3), obs=xs)
             elif self.distribution == "laplace":
-                numpyro.sample("x", dist.Laplace(loc, scale = self.beta).to_event(3), obs=xs)
+                numpyro.sample("x", dist.Laplace(loc, scale = self.beta*jnp.ones_like(loc)).to_event(3), obs=xs)
     
     def guide_unsupervised(self, xs):
         batch_size = xs.shape[0]

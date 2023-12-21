@@ -78,7 +78,8 @@ class M2VAE:
                  latent_dim: int,
                  img_shape: Tuple[int, int, int],
                  scale_factor: float,
-                 distribution: str):
+                 distribution: str,
+                 multiclass: bool = False):
         
         self.encoder_class = encoder_class
         self.decoder_class = decoder_class
@@ -87,7 +88,7 @@ class M2VAE:
         self.img_shape = img_shape
         self.scale_factor = scale_factor
         self.distribution = distribution
-
+        self.multiclass = multiclass
         self.internal_encoder1 = M2FirstEncoder(self.encoder_class, self.num_classes, self.latent_dim)
         self.internal_encoder1.init(
             random.PRNGKey(0), 
@@ -122,9 +123,13 @@ class M2VAE:
             prior_loc = jnp.zeros((batch_size, self.latent_dim))
             prior_scale = jnp.ones((batch_size, self.latent_dim))
             zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale).to_event(1))
-            alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
-            ys = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
-            y_one_hot = jnp.eye(self.num_classes)[ys]
+            if self.multiclass:
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / 2
+                y_one_hot = numpyro.sample("y", dist.Bernoulli(alpha_prior).to_event(1), obs=ys)
+            else :
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+                ys_p = numpyro.sample("y", dist.Categorical(alpha_prior), obs=ys)
+                y_one_hot = jnp.eye(self.num_classes)[ys_p]
             
             loc = decoder(zs, y_one_hot)
             numpyro.deterministic("loc", loc)
@@ -153,9 +158,13 @@ class M2VAE:
         with numpyro.plate("data", batch_size):
 
             h, y_prob = encoder1(xs)
-            y_one_hot = jnp.eye(self.num_classes)[ys]
-            loc, scale = encoder2(h, y_one_hot)
-            numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
+            if not self.multiclass:
+                y_one_hot = jnp.eye(self.num_classes)[ys]
+                loc, scale = encoder2(h, y_one_hot)
+                numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
+            else:
+                loc, scale = encoder2(h, ys)
+                numpyro.sample("z", dist.Normal(loc, scale).to_event(1))
     
     def model_unsupervised(self, xs):
         batch_size = xs.shape[0]
@@ -168,15 +177,19 @@ class M2VAE:
         ) 
 
         with numpyro.plate("data", batch_size):
-
+            if self.multiclass:
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / 2
+                y_one_hot = numpyro.sample("y", dist.Bernoulli(alpha_prior).to_event(1))
+            else :
+                alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
+                ys_p = numpyro.sample("y", dist.Categorical(alpha_prior))
+                y_one_hot = jnp.eye(self.num_classes)[ys_p]
+                
             prior_loc = jnp.zeros((batch_size, self.latent_dim))
             prior_scale = jnp.ones((batch_size, self.latent_dim))
             zs = numpyro.sample("z", dist.Normal(prior_loc, prior_scale).to_event(1))
 
-            alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
-            ys = numpyro.sample("y", dist.Categorical(alpha_prior))
-            y_one_hot = jnp.eye(self.num_classes)[ys]
-            
+
             loc = decoder(zs, y_one_hot)
             numpyro.deterministic("loc", loc)
 
