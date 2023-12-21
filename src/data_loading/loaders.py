@@ -1,11 +1,11 @@
 from typing import Optional
-
+import os
 import torch
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets
 
 from src.data_loading.constants import *
-from src.data_loading.data_transforms import default_transform
+from src.data_loading.data_transforms import default_transform, celeba_64_transform, celeba_128_transform
 from src.data_loading.collate_fn import *
 from src.data_loading.semi_supervised_dataloader import SemiSupervisedDataLoader
 
@@ -36,6 +36,24 @@ def get_data_loaders(dataset_name: str,
     elif dataset_name == "CIFAR10":
         dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=default_transform)
         img_shape = CIFAR10_IMG_SHAPE
+    elif dataset_name == "CELEBA":
+        if not os.path.exists('/tmp/celeba'):
+            ## Copy the content of ./data/celeba in /tmp/celeba then unzip img_align_celeba.zip in /tmp/celeba
+            os.makedirs("/tmp/celeba", exist_ok=True)
+            os.system("cp -r ./data/celeba/* /tmp/celeba")
+            os.system("unzip /tmp/celeba/img_align_celeba.zip -d /tmp/celeba")
+
+        dataset = datasets.CelebA(root='/tmp', split='all', download=False, transform=celeba_64_transform)
+        img_shape = CELEBA_IMG_SHAPE
+    elif dataset_name == "CELEBA128":
+        if not os.path.exists('/tmp/celeba128'):
+            ## Copy the content of ./data/celeba in /tmp/celeba then unzip img_align_celeba.zip in /tmp/celeba
+            os.makedirs("/tmp/celeba128", exist_ok=True)
+            os.system("cp -r ./data/celeba/* /tmp/celeba128")
+            os.system("unzip /tmp/celeba128/img_align_celeba.zip -d /tmp/celeba128")
+
+        dataset = datasets.CelebA(root='/tmp', split='all', download=False, transform=celeba_128_transform)
+        img_shape = CELEBA128_IMG_SHAPE
     else:
         raise ValueError("Unknown dataset:", str(dataset_name))
     

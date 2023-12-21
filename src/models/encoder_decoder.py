@@ -156,3 +156,13 @@ class CELEBADecoder(nn.Module):
         x = nn.sigmoid(x)
 
         return x
+    
+def get_encoder_decoder(dataset_name: str):
+    if dataset_name == "MNIST":
+        return MNISTEncoder, MNISTDecoder
+    elif dataset_name == "CIFAR10":
+        return CIFAR10Encoder, CIFAR10Decoder
+    elif dataset_name == "CELEBA":
+        return CELEBAEncoder, CELEBADecoder
+    else:
+        raise ValueError("Unknown dataset:", str(dataset_name))

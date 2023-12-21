@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from src.models.M2VAE import M2VAE
-from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder
+from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder, CELEBADecoder, CELEBAEncoder
 from src.data_loading.loaders import get_data_loaders
 
 
@@ -22,8 +22,8 @@ seed = 42
 # DATASET
 dataset_name = "MNIST" # use "CIFAR10"
 
-encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
-decoder_class = MNISTDecoder if dataset_name=="MNIST" else CIFAR10Decoder
+encoder_class = MNISTEncoder if dataset_name=="MNIST" else (CIFAR10Encoder if dataset_name=="CIFAR10" else CELEBAEncoder)
+decoder_class = MNISTDecoder if dataset_name=="MNIST" else (CIFAR10Decoder if dataset_name=="CIFAR10" else CELEBADecoder)
 distribution = "bernoulli" if dataset_name=="MNIST" else "laplace"
 
 # Data loading
@@ -36,7 +36,9 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name,
                                           num_workers=6, 
                                           seed=seed)
 
-scale_factor = 0.1 * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
+multiplier = 0.1 if dataset_name=="MNIST" else 0.3
+
+scale_factor = multiplier * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
 
 # Set up model
 m2_vae = M2VAE(encoder_class, 

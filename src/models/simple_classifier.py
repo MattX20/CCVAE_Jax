@@ -10,7 +10,7 @@ class SimpleClassifier(nn.Module):
     """
     encoder: Type[nn.Module]
     num_classes: int
-
+    
     @nn.compact
     def __call__(self, x):
         # Input x is expected to be of shape (batch_size, ...)

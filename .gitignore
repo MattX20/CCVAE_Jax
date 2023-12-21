@@ -9,3 +9,5 @@ model_weights/
 
 # Ignore python pycache
 __pycache__/
+
+pgm

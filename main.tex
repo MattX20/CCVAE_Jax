@@ -1,0 +1,99 @@
+\documentclass{article}
+
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2023
+
+
+% ready for submission
+\usepackage[final]{neurips_2023}
+
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2023}
+
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2023}
+
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2023}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+
+
+\title{Project : Variational Autoencoders – Graphical Models for (Semi) Supervision}
+
+
+
+\author{%
+  Matthieu Dinot \\
+  Ecole Polytechnique\\
+  Palaiseau, 91120, France \\
+    \texttt{matthieu.dinot@polytechnique.edu} \\
+\AND
+ David Heurtel-Depeiges \\
+  Ecole Polytechnique\\
+  Palaiseau, 91120, France \\
+    \texttt{david.heurtel-depeiges@polytechnique.edu} \\
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  Semi-supervised learning is about leveraging large amounts of unlabeled data to improve the performance of a model on a supervised task where labeled data is scarce. In this project, we compare and analyse two papers that implement semi-supervised learning on Variational Autoencoders. In doing so, both seek to: 1. build generative models able to perform conditional generation and 2. using latent representations of images to perform classification. (TODO complete with contributions)
+\end{abstract}
+
+
+\section{Introduction}
+
+
+
+\begin{itemize}
+    \item SSL and why SSL
+    \item VAEs
+    \item VAEs with labels, SSL and VAEs
+    \item Quick comparison of both paper with existing methods (more in the next section)
+    \item Summary of our theoretical contributions
+    \item Summary of our experimental contributions
+    \item Summary of our implementation contributions (Done)
+\end{itemize}
+
+Finally, we offer the first implementation to our knowledge of CCVAE and M2VAE in Jax, using Numpyro as a probabilistic programming backend.
+
+\section{Variational Autoencoders under supervision}
+
+
+\section{Contributions of each student}
+
+
+
+\section{Supplementary Material}
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{references.bib}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\appendix
+\section{Empty}
+Blablabla
+\end{document}

@@ -1,6 +1,6 @@
 from pathlib import Path
 import pickle
-
+import argparse
 import jax
 from jax import jit, device_put
 import jax.numpy as jnp
@@ -12,20 +12,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from src.models.CCVAE import CCVAE
-from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder
+from src.models.encoder_decoder import MNISTEncoder, MNISTDecoder, CIFAR10Encoder, CIFAR10Decoder, CELEBADecoder, CELEBAEncoder, get_encoder_decoder
 from src.data_loading.loaders import get_data_loaders
 from src.losses import CCVAE_ELBO
+from src.models.config import get_config
 
 
+parser = argparse.ArgumentParser(description='Train CCVAE')
+parser.add_argument('--dataset', type=str, default="MNIST", help='Dataset to use (MNIST, CIFAR10, CELEBA, CELEBA128)')
+parser.add_argument('--seed', type=int, default=42, help='Random seed')
+parser.add_argument('--num_epochs', type=int, default=30, help='Number of epochs')
+parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
+parser.add_argument('--lr', type=float, default=1e-3, help='Initial Learning rate')
+parser.add_argument('--p_test', type=float, default=0.1, help='Proportion of test set')
+parser.add_argument('--p_val', type=float, default=0.1, help='Proportion of validation set')
+parser.add_argument('--p_supervised', type=float, default=0.05, help='Proportion of supervised data')
+
+args = parser.parse_args()
 # Set up random seed
 seed = 42
 
 # DATASET
-dataset_name = "MNIST" # use "CIFAR10"
+dataset_name = "CELEBA" #"MNIST" # use "CIFAR10"
 
-encoder_class = MNISTEncoder if dataset_name=="MNIST" else CIFAR10Encoder
-decoder_class = MNISTDecoder if dataset_name=="MNIST" else CIFAR10Decoder
-distribution = "bernoulli" if dataset_name=="MNIST" else "laplace"
+config = get_config(dataset_name)
+encoder_class, decoder_class = get_encoder_decoder(dataset_name)
+
+distribution = config["distribution"]
 
 # Data loading
 
@@ -38,14 +51,16 @@ img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name,
                                           seed=seed)
 
 
+scale_factor = config['scale_factor'] * size_dict["supervised"] # IMPORTANT, maybe run a grid search (0.3 on cifar)
+
 # Set up model
 ccvae = CCVAE(encoder_class, 
                decoder_class, 
-               10, 
-               50, 
+               config['num_classes'],
+               config['latent_dim'], 
                img_shape, 
                distribution=distribution,
-               multiclass=False
+               multiclass=config['multiclass'],
 )
 print("Model set up!")
 

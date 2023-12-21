@@ -8,3 +8,23 @@ default_transform = v2.Compose([
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale=True)
 ])
+
+celeba_64_transform = v2.Compose([
+    v2.ToImage(),
+    v2.Resize((64, 64), antialias=True),
+    v2.ToDtype(torch.float32, scale=True)
+])
+
+celeba_64_untransform = v2.Compose([
+    v2.Resize((218, 178), antialias=True),
+])
+
+celeba_128_transform = v2.Compose([
+    v2.ToImage(),
+    v2.Resize((128, 128), antialias=True),
+    v2.ToDtype(torch.float32, scale=True)
+])
+
+celeba_128_untransform = v2.Compose([
+    v2.Resize((218, 178), antialias=True),
+])
