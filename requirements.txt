@@ -1,0 +1,10 @@
+numpy
+matplotlib
+torch
+torchvision
+jax
+optax 
+flax
+numpyro
+notebook
+tqdm
