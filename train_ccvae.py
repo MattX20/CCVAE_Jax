@@ -215,7 +215,7 @@ if not folder_path.exists():
     folder_path.mkdir(parents=True, exist_ok=True)
     print(f"Folder '{folder_path}' created.")
 
-save_file = "ccvae_" + dataset_name + "_p_supervised_" + str(args.p_supervised) + ".pkl"
+save_file = "ccvae_" + dataset_name + "_p_supervised_" + str(args.p_supervised) + "_seed_" + str(seed) + ".pkl"
 file_path = folder_path / save_file
 
 with open(file_path, 'wb') as file:

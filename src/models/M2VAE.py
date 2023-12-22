@@ -178,7 +178,7 @@ class M2VAE:
 
         with numpyro.plate("data", batch_size):
             if self.multiclass:
-                alpha_prior = jnp.ones((batch_size, self.num_classes)) / 2
+                alpha_prior = jnp.ones((batch_size, self.num_classes, 1)) / 2
                 y_one_hot = numpyro.sample("y", dist.Bernoulli(alpha_prior).to_event(1))
             else :
                 alpha_prior = jnp.ones((batch_size, self.num_classes)) / self.num_classes
@@ -241,8 +241,10 @@ class M2VAE:
     def guide_classify(self, xs, ys):
         pass
 
-    def classify(self, params_dict, xs):
+    def classify(self, params_dict, xs, return_prob=False):
         _, yprob = self.internal_encoder1.apply({"params": params_dict["encoder1$params"]}, xs)
         ypred = jnp.argmax(yprob, axis=1)
-
-        return ypred
+        if return_prob:
+            return ypred, yprob
+        else:
+            return ypred

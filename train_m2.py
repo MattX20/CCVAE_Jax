@@ -41,6 +41,7 @@ encoder_class, decoder_class = get_encoder_decoder(dataset_name)
 distribution = config["distribution"]
 
 # Data loading
+print("Propotion of supervised data: ", args.p_supervised)
 
 img_shape, loader_dict, size_dict = get_data_loaders(dataset_name=dataset_name, 
                                           p_test=args.p_test,
@@ -236,7 +237,7 @@ if not folder_path.exists():
     folder_path.mkdir(parents=True, exist_ok=True)
     print(f"Folder '{folder_path}' created.")
 
-save_file = "m2vae_" + dataset_name + "_p_supervised_" + str(args.p_supervised) + ".pkl"
+save_file = "m2vae_" + dataset_name + "_p_supervised_" + str(args.p_supervised)+ "_seed_" + str(seed) + ".pkl"
 file_path = folder_path / save_file
 
 with open(file_path, 'wb') as file:

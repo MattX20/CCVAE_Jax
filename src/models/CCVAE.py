@@ -328,7 +328,7 @@ class CCVAE:
             else :
                 numpyro.sample("y", dist.Categorical(y_prob))
 
-    def classify(self, params_dict, xs):
+    def classify(self, params_dict, xs, return_prob=False):
         loc, _ = self.internal_encoder.apply({"params": params_dict["encoder$params"]}, xs)
         loc_class, _ =  jnp.split(loc, [self.latent_class], axis=-1)
         y_prob = self.internal_classifier.apply({"params": params_dict["classifier$params"]}, loc_class)
@@ -337,5 +337,7 @@ class CCVAE:
             y_pred = jnp.round(y_prob)
         else:
             y_pred = jnp.argmax(y_prob, axis=1)
-        
-        return y_pred
+        if return_prob:
+            return y_pred, y_prob
+        else:
+            return y_pred
