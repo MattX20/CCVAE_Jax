@@ -30,8 +30,8 @@ Install the required packages using:
 ```
 pip install -r requirements.txt
 ```
-
-
+If you want a GPU-compatible jax install, please refer to the [jax installation page](https://jax.readthedocs.io/en/latest/installation.html).
+A GPU compatible installation of torch is not usefull, as torch is only used to load the datasets.
 
 ## References
 #### M2 semi-supervised VAE model
